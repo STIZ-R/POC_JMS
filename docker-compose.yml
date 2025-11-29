@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  activemq:
+    image: apache/activemq-classic:6.1.2
+    container_name: activemq
+    ports:
+      - "8282:8161"
+      - "61616:61616"
+
+  client:
+    build:
+      context: ./client
+    environment:
+      - ACTIVEMQ_URL=tcp://activemq:61616
+    depends_on:
+      - activemq
+
+  garagea:
+    build:
+      context: ./garagea
+      args:
+        GARAGE_CLASS: GarageA
+    container_name: garagea
+    environment:
+      - ACTIVEMQ_URL=tcp://activemq:61616
+    depends_on:
+      - activemq
+
+  garageb:
+    build:
+      context: ./garageb
+      args:
+        GARAGE_CLASS: GarageB
+    container_name: garageb
+    environment:
+      - ACTIVEMQ_URL=tcp://activemq:61616
+    depends_on:
+      - activemq
+
+
+  garagec:
+    build:
+      context: ./garagec
+      args:
+        GARAGE_CLASS: GarageC
+    container_name: garagec
+    environment:
+      - ACTIVEMQ_URL=tcp://activemq:61616
+    depends_on:
+      - activemq

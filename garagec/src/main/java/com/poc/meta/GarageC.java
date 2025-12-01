@@ -15,7 +15,7 @@ import java.util.List;
 public class GarageC {
 
     private final String garageName = "GarageC";
-    private final int location = 900;
+    private final int location = 77;
     private final List<String> stock = List.of("pneu", "huile");
 
     public static void main(String[] args) {

@@ -21,7 +21,7 @@ public class GarageA {
     //nom du garage + localisation (1d plus simple) + liste des objets en stock
     private final String garageName = "GarageA";
     private final int location = -17;
-    private final List<String> stock = List.of( "huile");
+    private final List<String> stock = List.of( "huile", "pneu");
 
     public static void main(String[] args) {
         SpringApplication.run(GarageA.class, args);

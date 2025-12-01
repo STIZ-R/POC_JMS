@@ -1,51 +1,165 @@
 version: "3.9"
 
 services:
+
   activemq:
     image: apache/activemq-classic:6.1.2
     container_name: activemq
     ports:
       - "8282:8161"
       - "61616:61616"
+    networks:
+      - poc-net
 
-  client:
-    build:
-      context: ./client
+  garagea-db:
+    image: postgres:16
+    container_name: garagea-db
     environment:
-      - ACTIVEMQ_URL=tcp://activemq:61616
-    depends_on:
-      - activemq
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: garagea
+    volumes:
+      - garagea_data:/var/lib/postgresql/data
+      - ./garagea/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    networks:
+      - poc-net
+
+  garageb-db:
+    image: postgres:16
+    container_name: garageb-db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: garageb
+    volumes:
+      - garageb_data:/var/lib/postgresql/data
+      - ./garageb/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5434:5432"
+    networks:
+      - poc-net
+
+
+  garagec-db:
+    image: postgres:16
+    container_name: garagec-db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: garagec
+    volumes:
+      - garagec_data:/var/lib/postgresql/data
+      - ./garagec/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5435:5432"
+    networks:
+      - poc-net
+
+
+  analytics-db:
+    image: postgres:16
+    container_name: analytics-db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: analytics
+    volumes:
+      - ./etl/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5436:5432"
+    networks:
+      - poc-net
+
+
 
   garagea:
     build:
       context: ./garagea
-      args:
-        GARAGE_CLASS: GarageA
     container_name: garagea
     environment:
       - ACTIVEMQ_URL=tcp://activemq:61616
+      - GARAGE_DB_URL=jdbc:postgresql://garagea-db:5432/garagea
+      - GARAGE_DB_USER=user
+      - GARAGE_DB_PASSWORD=pass
     depends_on:
       - activemq
+      - garagea-db
+    networks:
+      - poc-net
 
   garageb:
     build:
       context: ./garageb
-      args:
-        GARAGE_CLASS: GarageB
     container_name: garageb
     environment:
       - ACTIVEMQ_URL=tcp://activemq:61616
+      - GARAGE_DB_URL=jdbc:postgresql://garageb-db:5432/garageb
+      - GARAGE_DB_USER=user
+      - GARAGE_DB_PASSWORD=pass
     depends_on:
       - activemq
-
+      - garageb-db
+    networks:
+      - poc-net
 
   garagec:
     build:
-      context: ./garagec
-      args:
-        GARAGE_CLASS: GarageC
+       context: ./garagec
     container_name: garagec
+    environment:
+      - ACTIVEMQ_URL=tcp://activemq:61616
+      - GARAGE_DB_URL=jdbc:postgresql://garagec-db:5432/garagec
+      - GARAGE_DB_USER=user
+      - GARAGE_DB_PASSWORD=pass
+    depends_on:
+      - activemq
+      - garagec-db
+    networks:
+      - poc-net
+
+  client:
+    build:
+      context: ./client
+    container_name: client
     environment:
       - ACTIVEMQ_URL=tcp://activemq:61616
     depends_on:
       - activemq
+      - garagea
+      - garageb
+      - garagec
+    networks:
+      - poc-net
+
+  etl:
+    build:
+      context: ./etl
+    container_name: etl
+    environment:
+      - ANALYTICS_DB_URL=jdbc:postgresql://analytics-db:5432/analytics
+      - ANALYTICS_DB_USER=user
+      - ANALYTICS_DB_PASSWORD=pass
+      - GARAGEA_DB_URL=jdbc:postgresql://garagea-db:5432/garagea
+      - GARAGEB_DB_URL=jdbc:postgresql://garageb-db:5432/garageb
+      - GARAGEC_DB_URL=jdbc:postgresql://garagec-db:5432/garagec
+      - GARAGE_DB_USER=user
+      - GARAGE_DB_PASSWORD=pass
+    depends_on:
+      - garagea-db
+      - garageb-db
+      - garagec-db
+      - analytics-db
+    networks:
+      - poc-net
+
+
+volumes:
+  garagea_data:
+  garageb_data:
+  garagec_data:
+
+networks:
+  poc-net:
+    driver: bridge

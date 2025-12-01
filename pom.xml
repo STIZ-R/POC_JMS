@@ -13,6 +13,7 @@
         <module>garagea</module>
         <module>garageb</module>
         <module>garagec</module>
+        <module>etl</module>
     </modules>
 
     <properties>

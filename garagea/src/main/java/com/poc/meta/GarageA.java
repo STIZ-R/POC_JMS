@@ -8,7 +8,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.jms.annotation.EnableJms;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.listener.DefaultMessageListenerContainer;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+
+import javax.sql.DataSource;
 import java.util.List;
+
 
 /**
  * Classe générique pour un garage, on en a mit 3 pour notre POC.
@@ -18,10 +23,8 @@ import java.util.List;
 @SpringBootApplication
 @EnableJms
 public class GarageA {
-    //nom du garage + localisation (1d plus simple) + liste des objets en stock
+
     private final String garageName = "GarageA";
-    private final int location = -17;
-    private final List<String> stock = List.of( "huile", "pneu");
 
     public static void main(String[] args) {
         SpringApplication.run(GarageA.class, args);
@@ -40,7 +43,22 @@ public class GarageA {
     }
 
     @Bean
-    public DefaultMessageListenerContainer listener(ConnectionFactory cf, JmsTemplate jms) {
+    public DataSource dataSource() {
+        DriverManagerDataSource ds = new DriverManagerDataSource();
+        ds.setDriverClassName("org.postgresql.Driver");
+        ds.setUrl(System.getenv("GARAGE_DB_URL"));
+        ds.setUsername(System.getenv("GARAGE_DB_USER"));
+        ds.setPassword(System.getenv("GARAGE_DB_PASSWORD"));
+        return ds;
+    }
+
+    @Bean
+    public JdbcTemplate jdbcTemplate(DataSource ds) {
+        return new JdbcTemplate(ds);
+    }
+
+    @Bean
+    public DefaultMessageListenerContainer listener(ConnectionFactory cf, JmsTemplate jms, JdbcTemplate jdbc) {
         DefaultMessageListenerContainer container = new DefaultMessageListenerContainer();
         container.setConnectionFactory(cf);
         container.setDestinationName(garageName + ".queue");
@@ -54,7 +72,14 @@ public class GarageA {
                         String[] parts = txt.getText().split(":");
                         String service = parts[0];
                         int clientLoc = Integer.parseInt(parts[1]);
+
+                        List<String> stock = jdbc.query("SELECT item FROM stock",
+                                (rs, rowNum) -> rs.getString("item"));
+
                         if (!stock.contains(service)) return;
+
+                        int location = jdbc.queryForObject(
+                                "SELECT location FROM garage_info LIMIT 1", Integer.class);
 
                         int distance = Math.abs(location - clientLoc);
                         String reply = garageName + " , distance=" + distance;
@@ -70,8 +95,6 @@ public class GarageA {
                 }
             }
         });
-
         return container;
     }
-
 }
